@@ -1,0 +1,212 @@
+'use strict';
+
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+
+admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        databaseURL: "https://watts-dev.firebaseio.com"
+});
+
+
+const firestore = admin.firestore();
+
+const express = require('express');
+const cors = require('cors')({origin: true});
+const app = express();
+
+//const language = require('@google-cloud/language');
+//const client = new language.LanguageServiceClient();
+//const express = require('express');
+//const app = express();
+
+/* const authenticate = async (req, res, next) => {
+  if (!req.headers.authorization) {
+    console.error("no authorization was sent");
+    res.status(403).send('Unauthorized');
+    return;
+  }
+  if( !req.headers.authorization.startsWith('Bearer ')) {
+    console.error("no bearer token was sent");
+    res.status(403).send('Unauthorized');
+    return;
+  }
+  const idToken = req.headers.authorization.split('Bearer ')[1];
+    console.error("idToken",idToken);
+  try {
+    const decodedIdToken = await admin.auth().verifyIdToken(idToken);
+    req.user = decodedIdToken;
+    next();
+    return;
+  } catch(e) {
+    res.status(403).send({'Unauthorized':'sdfs'});
+    return;
+  }
+};
+*/
+
+const validateFirebaseIdToken = async (req, res, next) => {
+  console.log('Check if request is authorized with Firebase ID token');
+
+  if ((!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) &&
+      !(req.cookies && req.cookies.__session)) {
+    console.error('No Firebase ID token was passed as a Bearer token in the Authorization header.',
+        'Make sure you authorize your request by providing the following HTTP header:',
+        'Authorization: Bearer <Firebase ID Token>',
+        'or by passing a "__session" cookie.');
+    res.status(403).send('Unauthorized');
+    return;
+  }
+
+  let idToken;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    console.log('Found "Authorization" header');
+    // Read the ID Token from the Authorization header.
+    idToken = req.headers.authorization.split('Bearer ')[1];
+  } else if(req.cookies) {
+    console.log('Found "__session" cookie');
+    // Read the ID Token from cookie.
+    idToken = req.cookies.__session;
+  } else {
+    // No cookie
+    res.status(403).send('Unauthorized');
+    return;
+  }
+
+  try {
+    const decodedIdToken = await admin.auth().verifyIdToken(idToken);
+    console.log('ID Token correctly decoded', decodedIdToken);
+    req.user = decodedIdToken;
+    next();
+    return;
+  } catch (error) {
+    console.error('Error while verifying Firebase ID token:', error);
+    res.status(403).send('Unauthorized');
+    return;
+  }
+};
+app.use(cors);
+app.use(validateFirebaseIdToken);
+
+app.get('/hello', (req, res) => {
+  
+   console.log("in hello");
+   console.log("in hello", req.user.phone_number);
+res.send(`Hello ${req.user.phone_number}`);
+});
+
+
+
+// This HTTPS endpoint can only be accessed by your Firebase Users.
+// Requests need to be authorized by providing an `Authorization` HTTP header
+// with value `Bearer <Firebase ID Token>`.
+exports.app = functions.https.onRequest(app);
+
+
+/*
+exports.helloWorld = functions.https.onRequest((request, response) => {
+  console.log('helloWorld called');
+  if (!request.headers.authorization) {
+      console.error('No Firebase ID token was passed');
+      response.status(403).send('Unauthorized');
+      return;
+  }
+  admin.auth().verifyIdToken(request.headers.authorization).then(decodedIdToken => {
+    console.log('ID Token correctly decoded', decodedIdToken);
+    request.user = decodedIdToken;
+    response.send(request.body.name +', Hello from Firebase!');
+  }).catch(error => {
+    console.error('Error while verifying Firebase ID token:', error);
+    response.status(403).send('Unauthorized');
+  });
+});
+
+
+//app.use(authenticate);
+
+/* app.post('/api/messages', async (req, res) => {
+  const message = req.body.message;
+
+  console.log(`ANALYZING MESSAGE: "${message}"`);
+
+  try {
+    res.status(201).json({message, category});
+  } catch(error) {
+    console.log('Error detecting sentiment or saving message', error.message);
+    res.sendStatus(500);
+  }
+});
+
+
+app.get('/api/messages', async (req, res) => {
+
+  try{
+    console.log('ANALYZING MESSAGE: ');
+    console.log(user.email);
+
+    res.status(200).json({'abc':'def'});
+  } catch(error) {
+    console.log('Error getting messages', error.message);
+    res.sendStatus(500);
+  }
+});
+
+*/
+
+
+
+
+/*
+
+exports.addMessage = functions.https.onRequest(async (req, res) => {
+  // Grab the text parameter.
+  const original = req.query.text;
+  // Push the new message into the Realtime Database using the Firebase Admin SDK.
+  const snapshot = await admin.database().ref('/messages').push({original: original});
+  // Redirect with 303 SEE OTHER to the URL of the pushed object in the Firebase console.
+  res.redirect(303, snapshot.ref.toString());
+});
+
+
+/// Take the text parameter passed to this HTTP endpoint and insert it into the
+// Realtime Database under the path /messages/:pushId/original
+exports.api = functions.https.onRequest((req, res) => {
+  // Grab the text parameter.
+  //const original = req.query.text;
+
+    console.log('ANALYZING MESSAGE: ');
+    console.log(req.user.name);
+ 
+    return res.json({test: req.headers.authorization});
+  });
+
+exports.agoratoken = functions.https.onRequest((req, res) => {
+
+    const appID = '102f9454bef14ca69fb1a362420bc94c`';
+    const appCertificate = '9ec6795f314f44f8ba47903465f3a9a9';
+    const channelName = 'RonsChannel';
+    const uid = 2882341273;
+    const account = "2882341273";
+    const role = RtcRole.PUBLISHER;
+
+    const expirationTimeInSeconds = 3600
+
+
+    const currentTimestamp = Math.floor(Date.now() / 1000)
+
+    const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds
+
+    // IMPORTANT! Build token with either the uid or with the user account. Comment out the option you do not want to use below.
+
+    // Build token with uid
+    const tokenA = RtcTokenBuilder.buildTokenWithUid(appID, appCertificate, channelName, uid, role, privilegeExpiredTs);
+ //   console.log("Token With Integer Number Uid: " + tokenA);
+
+    // Build token with user account
+//    const tokenB = RtcTokenBuilder.buildTokenWithAccount(appID, appCertificate, channelName, account, role, privilegeExpiredTs);
+//   console.log("Token With UserAccount: " + tokenB);
+
+    return res.json({token: tokenB});
+  });
+*/
+
