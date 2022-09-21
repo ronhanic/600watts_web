@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "watts-dev"
-  }
+    "default": "protrainr-75faa",
+    "prod": "protrainr-75faa"
+  },
+  "targets": {},
+  "etags": {}
 }
